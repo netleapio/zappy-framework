@@ -1,4 +1,4 @@
-module github.com/netleap/zappy-framework
+module github.com/netleapio/zappy-framework
 
 go 1.19
 
