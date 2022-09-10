@@ -1,6 +1,6 @@
 package framework
 
-import "github.com/netleap/zappy-framework/protocol"
+import "github.com/netleapio/zappy-framework/protocol"
 
 type Framework struct {
 	Board Board
