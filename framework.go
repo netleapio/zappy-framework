@@ -1,6 +1,8 @@
 package framework
 
-import "github.com/netleapio/zappy-framework/protocol"
+import (
+	"github.com/netleapio/zappy-framework/protocol"
+)
 
 type Framework struct {
 	Board Board
@@ -68,7 +70,7 @@ func (f *Framework) Run() error {
 }
 
 // Send transmits a message using the zappy protocol
-func (f *Framework) Send(msg *protocol.Packet, t protocol.PacketType) error {
+func (f *Framework) Send(msg protocol.Message, t protocol.PacketType) error {
 	// TODO: async/queuing
 
 	r, err := f.Board.Radio()
@@ -76,13 +78,14 @@ func (f *Framework) Send(msg *protocol.Packet, t protocol.PacketType) error {
 		return err
 	}
 
-	msg.SetVersion(protocol.CurrentVersion)
-	msg.SetType(t)
-	msg.SetNetworkID(0)
-	msg.SetDeviceID(0)
-	msg.SetAlerts(f.currentAlerts())
+	pkt := msg.Packet()
 
-	pkt := (*protocol.Packet)(msg)
+	pkt.SetVersion(protocol.CurrentVersion)
+	pkt.SetType(t)
+	pkt.SetNetworkID(0)
+	pkt.SetDeviceID(0)
+	pkt.SetAlerts(f.currentAlerts())
+
 	data := pkt.AsBytes()
 
 	return r.Tx(data, 1000)

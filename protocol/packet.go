@@ -1,6 +1,8 @@
 package protocol
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+)
 
 //
 //   Header Format
@@ -17,7 +19,8 @@ import "encoding/binary"
 // Packet is a fixed-sized buffer (max LoRa payload)
 type Packet struct {
 	data [256]byte
-	ptr  int
+	ptr  uint8
+	len  uint8
 }
 
 const HeaderLen = 10
@@ -40,24 +43,54 @@ const (
 	TypeConfigureDevice PacketType = 0x8000
 )
 
+func (p *Packet) Reset() {
+	p.len = 0
+	p.ptr = 0
+}
+
+func (p *Packet) DeviceID() uint16 {
+	return binary.BigEndian.Uint16(p.data[0:])
+}
+
 func (p *Packet) SetDeviceID(device uint16) {
 	binary.BigEndian.PutUint16(p.data[0:], device)
+}
+
+func (p *Packet) NetworkID() uint16 {
+	return binary.BigEndian.Uint16(p.data[2:])
 }
 
 func (p *Packet) SetNetworkID(network uint16) {
 	binary.BigEndian.PutUint16(p.data[2:], network)
 }
 
+func (p *Packet) Version() uint16 {
+	return binary.BigEndian.Uint16(p.data[4:])
+}
+
 func (p *Packet) SetVersion(version uint16) {
 	binary.BigEndian.PutUint16(p.data[4:], version)
+}
+
+func (p *Packet) Alerts() Alerts {
+	return Alerts(binary.BigEndian.Uint16(p.data[6:]))
 }
 
 func (p *Packet) SetAlerts(alerts Alerts) {
 	binary.BigEndian.PutUint16(p.data[6:], uint16(alerts))
 }
 
+func (p *Packet) Type() PacketType {
+	return PacketType(binary.BigEndian.Uint16(p.data[8:]))
+}
+
 func (p *Packet) SetType(t PacketType) {
 	binary.BigEndian.PutUint16(p.data[8:], uint16(t))
+}
+
+// Remaining gets the number of unread bytes in the packet
+func (p *Packet) Remaining() uint8 {
+	return p.len - p.ptr
 }
 
 func (p *Packet) WriteUint16(v uint16) {
@@ -67,8 +100,52 @@ func (p *Packet) WriteUint16(v uint16) {
 
 	binary.BigEndian.PutUint16(p.data[p.ptr:], v)
 	p.ptr += 2
+	p.len = p.ptr
+}
+
+func (p *Packet) ReadUint16() uint16 {
+	if p.ptr < HeaderLen {
+		p.ptr = HeaderLen
+	}
+
+	v := binary.BigEndian.Uint16(p.data[p.ptr:])
+	p.ptr += 2
+	return v
+}
+
+func (p *Packet) Skip(n uint8) {
+	if p.ptr < HeaderLen {
+		p.ptr = HeaderLen
+	}
+
+	p.ptr += n
 }
 
 func (p *Packet) AsBytes() []byte {
-	return p.data[:p.ptr]
+	return p.data[:p.len]
+}
+
+// SetLength sets (and resets) the size of the packet
+func (p *Packet) SetLength(len uint8) {
+	p.len = len
+	if p.ptr > p.len {
+		p.ptr = p.len
+	}
+}
+
+// DetectMessage scans a packet to determine the message encoded
+func DetectMessage(pkt *Packet) Message {
+
+	var msg Message
+
+	switch pkt.Type() {
+	case TypeSensorReport:
+		msg = &SensorReport{}
+	}
+
+	if msg != nil {
+		msg.AttachPacket(pkt)
+	}
+
+	return msg
 }

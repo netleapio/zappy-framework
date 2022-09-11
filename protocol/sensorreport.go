@@ -9,33 +9,116 @@ var (
 	ErrInvalid  = errors.New("invalid")
 )
 
-type SensorReport Packet
+// SensorReport is a wrapper for a packet.
+//
+// Sensor reports are sent from devices to the controller indicating
+// the current status of all sensors available on the device.
+//
+// Devices may have different sensing capabilities, so the different
+// types of sensor are optional to include.
+type SensorReport struct {
+	packet *Packet
+}
 
-type ReadingType uint8
+func (r *SensorReport) AttachPacket(packet *Packet) {
+	r.packet = packet
+}
 
-const (
-	ReadingTypeBattVolts ReadingType = iota
-	ReadingTypeTemperature
-	ReadingTypePressure
-	ReadingTypeHumidity
-)
+func (r *SensorReport) Packet() *Packet {
+	return r.packet
+}
 
 func (r *SensorReport) AddBatteryVoltage(milliVolts uint16) {
-	(*Packet)(r).WriteUint16(uint16(ReadingTypeBattVolts))
-	(*Packet)(r).WriteUint16(milliVolts)
+	r.packet.WriteUint16(uint16(SensorTypeBattVolts))
+	r.packet.WriteUint16(milliVolts)
+}
+
+func (r *SensorReport) HasBatteryVoltage() bool {
+	return r.HasReadingType(SensorTypeBattVolts)
+}
+
+func (r *SensorReport) BatteryVoltage() uint16 {
+	return r.GetReadingUint16(SensorTypeBattVolts, 0)
 }
 
 func (r *SensorReport) AddTemperature(centiCelcius uint16) {
-	(*Packet)(r).WriteUint16(uint16(ReadingTypeTemperature))
-	(*Packet)(r).WriteUint16(centiCelcius)
+	r.packet.WriteUint16(uint16(SensorTypeTemperature))
+	r.packet.WriteUint16(centiCelcius)
+}
+
+func (r *SensorReport) HasTemperature() bool {
+	return r.HasReadingType(SensorTypeTemperature)
+}
+
+func (r *SensorReport) Temperature() uint16 {
+	return r.GetReadingUint16(SensorTypeTemperature, 0)
 }
 
 func (r *SensorReport) AddHumidity(centiPercent uint16) {
-	(*Packet)(r).WriteUint16(uint16(ReadingTypeHumidity))
-	(*Packet)(r).WriteUint16(centiPercent)
+	r.packet.WriteUint16(uint16(SensorTypeHumidity))
+	r.packet.WriteUint16(centiPercent)
+}
+
+func (r *SensorReport) HasHumidity() bool {
+	return r.HasReadingType(SensorTypeHumidity)
+}
+
+func (r *SensorReport) Humidity() uint16 {
+	return r.GetReadingUint16(SensorTypeHumidity, 0)
 }
 
 func (r *SensorReport) AddPressure(dekaPascal uint16) {
-	(*Packet)(r).WriteUint16(uint16(ReadingTypePressure))
-	(*Packet)(r).WriteUint16(dekaPascal)
+	r.packet.WriteUint16(uint16(SensorTypePressure))
+	r.packet.WriteUint16(dekaPascal)
+}
+
+func (r *SensorReport) HasPressure() bool {
+	return r.HasReadingType(SensorTypePressure)
+}
+
+func (r *SensorReport) Pressure() uint16 {
+	return r.GetReadingUint16(SensorTypePressure, 0)
+}
+
+func (r *SensorReport) AllReadings() map[SensorType]uint16 {
+	result := make(map[SensorType]uint16)
+
+	r.packet.ptr = HeaderLen
+	for r.packet.Remaining() >= 4 {
+		fieldType := SensorType(r.packet.ReadUint16())
+		fieldValue := r.packet.ReadUint16()
+
+		result[fieldType] = fieldValue
+	}
+
+	return result
+}
+
+func (r *SensorReport) HasReadingType(t SensorType) bool {
+	r.packet.ptr = HeaderLen
+	for r.packet.Remaining() >= 4 {
+		fieldType := SensorType(r.packet.ReadUint16())
+		if fieldType == t {
+			return true
+		}
+
+		// skip value
+		r.packet.Skip(2)
+	}
+
+	return false
+}
+
+// Gets the value of a reading or a default value
+func (r *SensorReport) GetReadingUint16(t SensorType, def uint16) uint16 {
+	r.packet.ptr = HeaderLen
+	for r.packet.Remaining() >= 4 {
+		fieldType := SensorType(r.packet.ReadUint16())
+		fieldValue := r.packet.ReadUint16()
+		if fieldType == t {
+			return fieldValue
+		}
+	}
+
+	return def
 }
