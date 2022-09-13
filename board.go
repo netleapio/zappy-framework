@@ -7,8 +7,13 @@ import (
 
 // Board provides the common abstraction for all compatible boards
 type Board interface {
-	// Initialize the board, configuration of peripherals, etc
-	Initialize() error
+	// Initialize the board, configuration of peripherals, etc sufficient
+	// to initialize the RTC.
+	InitializePreRTC() error
+
+	// Initialize the board, configuration of peripherals, etc.  This is
+	// after RTC, so time is established.
+	InitializePostRTC() error
 
 	// DeepSleep instructs the board abstraction to:
 	//  1. reduce power consumption as far as possible (excepting RTC alarm)

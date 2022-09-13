@@ -18,10 +18,10 @@ func New(board Board, app App) *Framework {
 
 // Run is the function called by the app to hand over control to the framework.
 func (f *Framework) Run() error {
-	err := f.Board.Initialize()
+	err := f.Board.InitializePreRTC()
 	if err != nil {
 		// Failure to initialize board is fatal
-		DebugOut("failed to initialize board")
+		DebugOut("failed to initialize board (pre RTC)")
 		panic(err)
 	}
 
@@ -32,10 +32,18 @@ func (f *Framework) Run() error {
 		panic(err)
 	}
 
+	// Set time according to RTC
 	err = initTime(rtc)
 	if err != nil {
 		// Failing to establish time is fatal
 		DebugOut("failed to initialize time from RTC")
+		panic(err)
+	}
+
+	err = f.Board.InitializePostRTC()
+	if err != nil {
+		// Failure to initialize board is fatal
+		DebugOut("failed to initialize board (post RTC)")
 		panic(err)
 	}
 
