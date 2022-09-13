@@ -39,3 +39,11 @@ func (d *NullDisplay) ClearBuffer() {
 func (d *NullDisplay) Display() error {
 	return nil
 }
+
+// WaitUntilIdle helps emulate e-Paper type displays
+func (d *NullDisplay) WaitUntilIdle() {
+}
+
+// DeepSleep helps emulate e-Paper type displays
+func (d *NullDisplay) DeepSleep() {
+}
