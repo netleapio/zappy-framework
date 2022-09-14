@@ -102,10 +102,12 @@ func (f *Framework) Send(msg protocol.Message, t protocol.PacketType) error {
 func (f *Framework) currentAlerts() protocol.Alerts {
 	val := protocol.AlertNone
 
-	if f.Board.BatteryVoltage() < LowBatteryAlertVoltage {
+	battV := f.Board.BatteryVoltage()
+
+	if battV < LowBatteryAlertVoltage {
 		val |= protocol.AlertBattLow
 	}
-	if f.Board.BatteryVoltage() < CriticalBatteryAlertVoltage {
+	if battV < CriticalBatteryAlertVoltage {
 		val |= protocol.AlertBattCritical
 	}
 
