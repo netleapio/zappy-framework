@@ -31,6 +31,12 @@ type RTC interface {
 
 	// AcknowledgeAlarm clears the interrupt status associated with the alarm.
 	AcknowledgeAlarm() error
+
+	// Healthy indicates if the RTC is in a healthy running state.
+	IsHealthy() bool
+
+	// Dump displays diagnostic info to console
+	Dump()
 }
 
 type RTCField uint8

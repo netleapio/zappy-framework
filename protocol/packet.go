@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"encoding/binary"
+	"strings"
 )
 
 //
@@ -33,7 +34,23 @@ const (
 	AlertNone    Alerts = 0
 	AlertBattLow Alerts = 1 << iota
 	AlertBattCritical
+	AlertRTCFailure
 )
+
+func (a Alerts) String() string {
+	flagStrs := make([]string, 0, 16)
+	if a&AlertBattLow != 0 {
+		flagStrs = append(flagStrs, "BattLow")
+	}
+	if a&AlertBattCritical != 0 {
+		flagStrs = append(flagStrs, "BattCritical")
+	}
+	if a&AlertRTCFailure != 0 {
+		flagStrs = append(flagStrs, "RTCFailure")
+	}
+
+	return "[" + strings.Join(flagStrs, ",") + "]"
+}
 
 type PacketType uint16
 
