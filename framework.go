@@ -18,6 +18,10 @@ func New(board Board, app App) *Framework {
 
 // Run is the function called by the app to hand over control to the framework.
 func (f *Framework) Run() error {
+	// On any failure, try to enter deep sleep
+	// TODO: watchdog
+	defer f.Board.DeepSleep()
+
 	err := f.Board.InitializePreRTC()
 	if err != nil {
 		// Failure to initialize board is fatal
@@ -109,6 +113,11 @@ func (f *Framework) currentAlerts() protocol.Alerts {
 	}
 	if battV < CriticalBatteryAlertVoltage {
 		val |= protocol.AlertBattCritical
+	}
+
+	rtc, err := f.Board.RTC()
+	if err != nil || rtc == nil || !rtc.IsHealthy() {
+		val |= protocol.AlertRTCFailure
 	}
 
 	return val
