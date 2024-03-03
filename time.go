@@ -1,6 +1,11 @@
 package framework
 
 func initTime(rtc RTC) error {
+	// Skip if no RTC
+	if rtc == nil {
+		return nil
+	}
+
 	err := setTimeFromRTC(rtc)
 	if err != nil {
 		return err

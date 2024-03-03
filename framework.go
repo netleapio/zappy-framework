@@ -1,18 +1,27 @@
+//go:build tinygo
+
 package framework
 
 import (
+	"hash/crc32"
+	"machine"
+
 	"github.com/netleapio/zappy-framework/protocol"
 )
 
 type Framework struct {
-	Board Board
-	App   App
+	Board    Board
+	App      App
+	DeviceID uint16
 }
 
 func New(board Board, app App) *Framework {
+	hwID := uint16(crc32.Update(0, crc32.IEEETable, machine.DeviceID()))
+
 	return &Framework{
-		Board: board,
-		App:   app,
+		Board:    board,
+		App:      app,
+		DeviceID: hwID,
 	}
 }
 
@@ -20,7 +29,7 @@ func New(board Board, app App) *Framework {
 func (f *Framework) Run() error {
 	// On any failure, try to enter deep sleep
 	// TODO: watchdog
-	defer f.Board.DeepSleep()
+	//defer f.Board.DeepSleep()
 
 	err := f.Board.InitializePreRTC()
 	if err != nil {
@@ -31,8 +40,8 @@ func (f *Framework) Run() error {
 
 	rtc, err := f.Board.RTC()
 	if err != nil || rtc == nil {
-		// Failover to get RTC is fatal
-		DebugOut("RTC not available")
+		// Failure to get RTC is fatal
+		DebugOut("RTC failed to initialize RTC")
 		panic(err)
 	}
 
@@ -95,8 +104,9 @@ func (f *Framework) Send(msg protocol.Message, t protocol.PacketType) error {
 	pkt.SetVersion(protocol.CurrentVersion)
 	pkt.SetType(t)
 	pkt.SetNetworkID(0)
-	pkt.SetDeviceID(0)
+	pkt.SetDeviceID(f.DeviceID)
 	pkt.SetAlerts(f.currentAlerts())
+	pkt.UpdateCRC()
 
 	data := pkt.AsBytes()
 

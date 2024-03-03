@@ -1,3 +1,5 @@
+//go:build tinygo
+
 // Framework provides the glue logic between board abstractions and apps
 package framework
 

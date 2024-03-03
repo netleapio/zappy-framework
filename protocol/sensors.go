@@ -33,5 +33,5 @@ var SensorMetadata = map[SensorType]*SensorInfo{
 	SensorTypeBattVolts:   {Name: "battery", Unit: "volts", Mult: 1, Div: 1000},
 	SensorTypeTemperature: {Name: "temperature", Unit: "celsius", Mult: 1, Div: 100},
 	SensorTypePressure:    {Name: "pressure", Unit: "pascals", Mult: 10, Div: 1},
-	SensorTypeHumidity:    {Name: "humidity", Unit: "ratio", Mult: 1, Div: 10000},
+	SensorTypeHumidity:    {Name: "humidity", Unit: "percent", Mult: 1, Div: 100},
 }

@@ -83,7 +83,7 @@ func (r *SensorReport) Pressure() uint16 {
 func (r *SensorReport) AllReadings() map[SensorType]uint16 {
 	result := make(map[SensorType]uint16)
 
-	r.packet.ptr = HeaderLen
+	r.packet.ptr = r.packet.HeaderLen()
 	for r.packet.Remaining() >= 4 {
 		fieldType := SensorType(r.packet.ReadUint16())
 		fieldValue := r.packet.ReadUint16()
@@ -95,7 +95,7 @@ func (r *SensorReport) AllReadings() map[SensorType]uint16 {
 }
 
 func (r *SensorReport) HasReadingType(t SensorType) bool {
-	r.packet.ptr = HeaderLen
+	r.packet.ptr = r.packet.HeaderLen()
 	for r.packet.Remaining() >= 4 {
 		fieldType := SensorType(r.packet.ReadUint16())
 		if fieldType == t {
@@ -111,7 +111,7 @@ func (r *SensorReport) HasReadingType(t SensorType) bool {
 
 // Gets the value of a reading or a default value
 func (r *SensorReport) GetReadingUint16(t SensorType, def uint16) uint16 {
-	r.packet.ptr = HeaderLen
+	r.packet.ptr = r.packet.HeaderLen()
 	for r.packet.Remaining() >= 4 {
 		fieldType := SensorType(r.packet.ReadUint16())
 		fieldValue := r.packet.ReadUint16()

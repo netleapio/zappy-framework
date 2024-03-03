@@ -6,16 +6,17 @@ import (
 )
 
 //
-//   Header Format
+//   Packet Format
 //
 //   31                              15                             0
 //   +-------------------------------+------------------------------+
-//   | DeviceID                      | NetworkID                    |
+//   | NetworkID                     | DeviceID                     |
 //   +-------------------------------+------------------------------+
 //   | Alerts                        | Version                      |
 //   +-------------------------------+------------------------------+
-//   | Type                          |
-//   +-------------------------------+
+//   | CRC (Version 2+)              | Type                         |
+//   +-------------------------------+------------------------------+
+//
 
 // Packet is a fixed-sized buffer (max LoRa payload)
 type Packet struct {
@@ -24,9 +25,21 @@ type Packet struct {
 	len  uint8
 }
 
-const HeaderLen = 10
+const (
+	HeaderLenV1 = 10
+	HeaderLenV2 = 12
 
-const CurrentVersion = 1
+	crcKey = 0xA152
+
+	deviceIDHeaderOffset  = 0
+	networkIDHeaderOffset = 2
+	versionHeaderOffset   = 4
+	alertsHeaderOffset    = 6
+	typeHeaderOffset      = 8
+	crcHeaderOffset       = 10
+)
+
+const CurrentVersion = 2
 
 type Alerts uint16
 
@@ -37,8 +50,9 @@ const (
 	AlertRTCFailure
 )
 
-func (a Alerts) String() string {
+func (a Alerts) Strings() []string {
 	flagStrs := make([]string, 0, 16)
+
 	if a&AlertBattLow != 0 {
 		flagStrs = append(flagStrs, "BattLow")
 	}
@@ -49,7 +63,12 @@ func (a Alerts) String() string {
 		flagStrs = append(flagStrs, "RTCFailure")
 	}
 
-	return "[" + strings.Join(flagStrs, ",") + "]"
+	return flagStrs
+}
+
+func (a Alerts) String() string {
+
+	return "[" + strings.Join(a.Strings(), ",") + "]"
 }
 
 type PacketType uint16
@@ -63,46 +82,79 @@ const (
 func (p *Packet) Reset() {
 	p.len = 0
 	p.ptr = 0
+	p.SetVersion(CurrentVersion)
 }
 
 func (p *Packet) DeviceID() uint16 {
-	return binary.BigEndian.Uint16(p.data[0:])
+	return binary.BigEndian.Uint16(p.data[deviceIDHeaderOffset:])
 }
 
 func (p *Packet) SetDeviceID(device uint16) {
-	binary.BigEndian.PutUint16(p.data[0:], device)
+	binary.BigEndian.PutUint16(p.data[deviceIDHeaderOffset:], device)
 }
 
 func (p *Packet) NetworkID() uint16 {
-	return binary.BigEndian.Uint16(p.data[2:])
+	return binary.BigEndian.Uint16(p.data[networkIDHeaderOffset:])
 }
 
 func (p *Packet) SetNetworkID(network uint16) {
-	binary.BigEndian.PutUint16(p.data[2:], network)
+	binary.BigEndian.PutUint16(p.data[networkIDHeaderOffset:], network)
 }
 
 func (p *Packet) Version() uint16 {
-	return binary.BigEndian.Uint16(p.data[4:])
+	return binary.BigEndian.Uint16(p.data[versionHeaderOffset:])
 }
 
 func (p *Packet) SetVersion(version uint16) {
-	binary.BigEndian.PutUint16(p.data[4:], version)
+	binary.BigEndian.PutUint16(p.data[versionHeaderOffset:], version)
 }
 
 func (p *Packet) Alerts() Alerts {
-	return Alerts(binary.BigEndian.Uint16(p.data[6:]))
+	return Alerts(binary.BigEndian.Uint16(p.data[alertsHeaderOffset:]))
 }
 
 func (p *Packet) SetAlerts(alerts Alerts) {
-	binary.BigEndian.PutUint16(p.data[6:], uint16(alerts))
+	binary.BigEndian.PutUint16(p.data[alertsHeaderOffset:], uint16(alerts))
 }
 
 func (p *Packet) Type() PacketType {
-	return PacketType(binary.BigEndian.Uint16(p.data[8:]))
+	return PacketType(binary.BigEndian.Uint16(p.data[typeHeaderOffset:]))
 }
 
 func (p *Packet) SetType(t PacketType) {
-	binary.BigEndian.PutUint16(p.data[8:], uint16(t))
+	binary.BigEndian.PutUint16(p.data[typeHeaderOffset:], uint16(t))
+}
+
+func (p *Packet) UpdateCRC() {
+	// Set CRC field to 'unique' value 0xA152 just in case
+	// any other protocols happen to use same CRC in same place
+	// (highly unlikely, but...)
+	binary.BigEndian.PutUint16(p.data[crcHeaderOffset:], crcKey)
+
+	crc := calcCrc(p.data[:p.len])
+
+	binary.BigEndian.PutUint16(p.data[crcHeaderOffset:], crc)
+}
+
+func (p *Packet) CRCValid() bool {
+	// V1 has no CRC, so indicate always valid
+	if p.Version() == 1 {
+		return true
+	}
+
+	storedCRC := binary.BigEndian.Uint16(p.data[crcHeaderOffset:])
+
+	// Temporarily over-write the packet CRC with the 'key' and
+	// ensure it's restored before the function exits.  This is ugly,
+	// but...
+	defer func() {
+		binary.BigEndian.PutUint16(p.data[crcHeaderOffset:], storedCRC)
+	}()
+	binary.BigEndian.PutUint16(p.data[crcHeaderOffset:], crcKey)
+
+	calcCrc := calcCrc(p.data[:p.len])
+
+	return calcCrc == storedCRC
 }
 
 // Remaining gets the number of unread bytes in the packet
@@ -111,8 +163,8 @@ func (p *Packet) Remaining() uint8 {
 }
 
 func (p *Packet) WriteUint16(v uint16) {
-	if p.ptr < HeaderLen {
-		p.ptr = HeaderLen
+	if p.ptr < p.HeaderLen() {
+		p.ptr = p.HeaderLen()
 	}
 
 	binary.BigEndian.PutUint16(p.data[p.ptr:], v)
@@ -121,8 +173,8 @@ func (p *Packet) WriteUint16(v uint16) {
 }
 
 func (p *Packet) ReadUint16() uint16 {
-	if p.ptr < HeaderLen {
-		p.ptr = HeaderLen
+	if p.ptr < p.HeaderLen() {
+		p.ptr = p.HeaderLen()
 	}
 
 	v := binary.BigEndian.Uint16(p.data[p.ptr:])
@@ -131,8 +183,8 @@ func (p *Packet) ReadUint16() uint16 {
 }
 
 func (p *Packet) Skip(n uint8) {
-	if p.ptr < HeaderLen {
-		p.ptr = HeaderLen
+	if p.ptr < p.HeaderLen() {
+		p.ptr = p.HeaderLen()
 	}
 
 	p.ptr += n
@@ -150,6 +202,15 @@ func (p *Packet) SetLength(len uint8) {
 	}
 }
 
+// HeaderLen gets the size of the header for this packet
+func (p *Packet) HeaderLen() uint8 {
+	if p.Version() < 2 {
+		return HeaderLenV1
+	}
+
+	return HeaderLenV2
+}
+
 // DetectMessage scans a packet to determine the message encoded
 func DetectMessage(pkt *Packet) Message {
 
@@ -165,4 +226,23 @@ func DetectMessage(pkt *Packet) Message {
 	}
 
 	return msg
+}
+
+// calcCrc implements MODBUS-16 CRC
+func calcCrc(buf []byte) uint16 {
+	crc := uint16(0xFFFF)
+
+	for _, b := range buf {
+		crc ^= uint16(b)
+
+		for bit := 0; bit < 8; bit++ {
+			if (crc & 0x0001) != 0 {
+				crc >>= 1
+				crc ^= 0xA001
+			} else {
+				crc >>= 1
+			}
+		}
+	}
+	return crc
 }
