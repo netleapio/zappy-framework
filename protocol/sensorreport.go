@@ -80,6 +80,45 @@ func (r *SensorReport) Pressure() uint16 {
 	return r.GetReadingUint16(SensorTypePressure, 0)
 }
 
+func (r *SensorReport) AddSupplyVoltage(milliVolts uint16) {
+	r.packet.WriteUint16(uint16(SensorTypeSupplyVolts))
+	r.packet.WriteUint16(milliVolts)
+}
+
+func (r *SensorReport) HasSupplyVoltage() bool {
+	return r.HasReadingType(SensorTypeSupplyVolts)
+}
+
+func (r *SensorReport) SupplyVoltage() uint16 {
+	return r.GetReadingUint16(SensorTypeSupplyVolts, 0)
+}
+
+func (r *SensorReport) AddLoadPower(deciVolts uint16) {
+	r.packet.WriteUint16(uint16(SensorTypeLoadPower))
+	r.packet.WriteUint16(deciVolts)
+}
+
+func (r *SensorReport) HasLoadPower() bool {
+	return r.HasReadingType(SensorTypeLoadPower)
+}
+
+func (r *SensorReport) LoadPower() uint16 {
+	return r.GetReadingUint16(SensorTypeLoadPower, 0)
+}
+
+func (r *SensorReport) AddCoils(coils uint16) {
+	r.packet.WriteUint16(uint16(SensorTypeCoils))
+	r.packet.WriteUint16(coils)
+}
+
+func (r *SensorReport) HasCoils() bool {
+	return r.HasReadingType(SensorTypeCoils)
+}
+
+func (r *SensorReport) Coils() uint16 {
+	return r.GetReadingUint16(SensorTypeCoils, 0)
+}
+
 func (r *SensorReport) AllReadings() map[SensorType]uint16 {
 	result := make(map[SensorType]uint16)
 

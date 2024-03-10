@@ -7,6 +7,9 @@ const (
 	SensorTypeTemperature
 	SensorTypePressure
 	SensorTypeHumidity
+	SensorTypeSupplyVolts
+	SensorTypeLoadPower
+	SensorTypeCoils
 )
 
 var AllSensorTypes = []SensorType{
@@ -14,6 +17,9 @@ var AllSensorTypes = []SensorType{
 	SensorTypeTemperature,
 	SensorTypePressure,
 	SensorTypeHumidity,
+	SensorTypeSupplyVolts,
+	SensorTypeLoadPower,
+	SensorTypeCoils,
 }
 
 // SensorInfo provides meta-data about each type of sensor, including
@@ -34,4 +40,7 @@ var SensorMetadata = map[SensorType]*SensorInfo{
 	SensorTypeTemperature: {Name: "temperature", Unit: "celsius", Mult: 1, Div: 100},
 	SensorTypePressure:    {Name: "pressure", Unit: "pascals", Mult: 10, Div: 1},
 	SensorTypeHumidity:    {Name: "humidity", Unit: "percent", Mult: 1, Div: 100},
+	SensorTypeSupplyVolts: {Name: "supply", Unit: "volts", Mult: 1, Div: 1000},
+	SensorTypeLoadPower:   {Name: "load", Unit: "watts", Mult: 1, Div: 10},
+	SensorTypeCoils:       {Name: "coils", Unit: "", Mult: 1, Div: 1},
 }
